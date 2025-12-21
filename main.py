@@ -9,9 +9,9 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 REMOVEBG_API_KEY = os.environ.get("REMOVEBG_API_KEY")
 OWNER_ID = int(os.environ.get("OWNER_ID"))
 
-UPI_ID = "yourupi@bank"
-QR_IMAGE_URL = "https://i.imgur.com/your_qr.png"
-OWNER_USERNAME = "YourTelegramUsername"
+UPI_ID = os.environ.get("UPI_ID")
+QR_IMAGE_URL = os.environ.get("UPI_QR_URL")
+OWNER_USERNAME = os.environ.get("OWNER_USERNAME")
 
 DATA_FILE = "users.json"
 
