@@ -10,7 +10,7 @@ REMOVEBG_API_KEY = os.environ.get("REMOVEBG_API_KEY")
 OWNER_ID = int(os.environ.get("OWNER_ID"))
 
 UPI_ID = os.environ.get("UPI_ID")
-QR_IMAGE_URL = os.environ.get("UPI_QR_URL")
+QR_IMAGE_URL = os.environ.get("QR_IMAGE_URL")
 OWNER_USERNAME = os.environ.get("OWNER_USERNAME")
 
 DATA_FILE = "users.json"
