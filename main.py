@@ -1,3 +1,5 @@
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 import os, json, requests
 from datetime import date, datetime, timedelta
 from pyrogram import Client, filters
@@ -14,6 +16,22 @@ QR_IMAGE_URL = os.environ.get("QR_IMAGE_URL")
 OWNER_USERNAME = os.environ.get("OWNER_USERNAME")
 
 DATA_FILE = "users.json"
+
+# ---------- UPTIME ROBOT SERVER ----------
+class PingHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"Bot is alive!")
+
+def run_http_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), PingHandler)
+    server.serve_forever()
+
+threading.Thread(target=run_http_server, daemon=True).start()
+# ---------------------------------------
 
 def load_data():
     if not os.path.exists(DATA_FILE):
