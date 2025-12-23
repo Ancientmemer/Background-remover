@@ -56,6 +56,17 @@ def save_data(data):
     with open(DATA_FILE, "w") as f:
         json.dump(data, f)
 
+def register_user(user_id):
+    data = load_data()
+    uid = str(user_id)
+
+    if uid not in data:
+        data[uid] = {
+            "count": 0,
+            "date": str(date.today())
+        }
+        save_data(data)
+
 def is_premium(user):
     if "premium_until" not in user:
         return False
@@ -92,6 +103,7 @@ app = Client("bg_remover_bot", API_ID, API_HASH, bot_token=BOT_TOKEN)
 
 @app.on_message(filters.command("start"))
 async def start(_, m):
+    register_user(m.from_user.id)
     cfg = load_config()
 
     if cfg["premium_mode"]:
@@ -109,7 +121,7 @@ async def start(_, m):
         kb = None
         text = (
             "👋 Welcome!\n\n"
-            "🟢 Don't want any kind of Premium\n"
+            "🟢 Premium mode OFF\n"
             "♾ Unlimited access for everyone\n\n"
             "📸 Send a photo to remove background\n\n"
             "ᴩᴏᴡᴇʀᴇᴅ ʙʏ: @jb_links"
@@ -119,7 +131,9 @@ async def start(_, m):
 
 @app.on_message(filters.command("usage"))
 async def usage(_, m):
+    register_user(m.from_user.id)
     cfg = load_config()
+
     if not cfg["premium_mode"]:
         await m.reply("🟢 Premium mode is OFF\n♾ Unlimited usage")
         return
@@ -214,7 +228,29 @@ async def stats(_, m):
         f"📊 Bot Stats\n\n"
         f"👥 Total users: {len(data)}"
     )
+    
+# ================== USERS =====================
+@app.on_message(filters.command("users") & filters.user(OWNER_ID))
+async def export_users(_, m):
+    data = load_data()
 
+    if not data:
+        await m.reply("❌ No users found.")
+        return
+
+    filename = "users.txt"
+
+    with open(filename, "w") as f:
+        for uid in data.keys():
+            f.write(f"{uid}\n")
+
+    await m.reply_document(
+        document=filename,
+        caption=f"📤 Exported users list\n👥 Total users: {len(data)}"
+    )
+
+    os.remove(filename)
+    
 # ================== BROADCAST ==================
 @app.on_message(filters.command("broadcast") & filters.user(OWNER_ID))
 async def broadcast(_, m):
@@ -244,7 +280,9 @@ async def broadcast(_, m):
 # ================== IMAGE HANDLER ==================
 @app.on_message(filters.photo)
 async def bg_remove(_, m):
+    register_user(m.from_user.id)
     allowed, status = check_limit(m.from_user.id)
+
     if not allowed:
         await m.reply("🚫 Daily limit reached.\n🌟 Get Premium for unlimited usage.")
         return
