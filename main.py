@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
+# ================== ENV ==================
 API_ID = int(os.environ.get("API_ID"))
 API_HASH = os.environ.get("API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -16,8 +17,9 @@ QR_IMAGE_URL = os.environ.get("QR_IMAGE_URL")
 OWNER_USERNAME = os.environ.get("OWNER_USERNAME")
 
 DATA_FILE = "users.json"
+CONFIG_FILE = "config.json"
 
-# ---------- UPTIME ROBOT SERVER ----------
+# ================== UPTIME ROBOT SERVER ==================
 class PingHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -31,8 +33,20 @@ def run_http_server():
     server.serve_forever()
 
 threading.Thread(target=run_http_server, daemon=True).start()
-# ---------------------------------------
+# ========================================================
 
+# ================== CONFIG ==================
+def load_config():
+    if not os.path.exists(CONFIG_FILE):
+        return {"premium_mode": True}
+    with open(CONFIG_FILE, "r") as f:
+        return json.load(f)
+
+def save_config(cfg):
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(cfg, f)
+
+# ================== USER DATA ==================
 def load_data():
     if not os.path.exists(DATA_FILE):
         return {}
@@ -49,6 +63,10 @@ def is_premium(user):
     return datetime.strptime(user["premium_until"], "%Y-%m-%d") >= datetime.now()
 
 def check_limit(user_id):
+    cfg = load_config()
+    if not cfg["premium_mode"]:
+        return True, "unlimited"
+
     data = load_data()
     today = str(date.today())
     uid = str(user_id)
@@ -70,23 +88,43 @@ def check_limit(user_id):
     save_data(data)
     return True, f"{3 - user['count']} left"
 
+# ================== BOT ==================
 app = Client("bg_remover_bot", API_ID, API_HASH, bot_token=BOT_TOKEN)
 
 @app.on_message(filters.command("start"))
 async def start(_, m):
-    kb = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("🌟 Get Premium", callback_data="get_premium")]]
-    )
-    await m.reply(
-        "👋 Welcome!\n\n"
-        "🆓 Free: 3 images/day\n"
-        "🌟 Premium: Unlimited\n\n"
-        "📸 Send a photo to remove background",
-        reply_markup=kb
-    )
+    cfg = load_config()
+
+    if cfg["premium_mode"]:
+        kb = InlineKeyboardMarkup(
+            [[InlineKeyboardButton("🌟 Get Premium", callback_data="get_premium")]]
+        )
+        text = (
+            "👋 Welcome!\n\n"
+            "🆓 Free: 3 images/day\n"
+            "🌟 Premium: Unlimited\n\n"
+            "📸 Send a photo to remove background\n\n"
+            "ᴩᴏᴡᴇʀᴇᴅ ʙʏ: @jb_links"
+        )
+    else:
+        kb = None
+        text = (
+            "👋 Welcome!\n\n"
+            "🟢 Don't want any kind of Premium 🤩\n"
+            "♾ Unlimited access for everyone ✨\n\n"
+            "📸 Send a photo to remove background\n\n"
+            "ᴩᴏᴡᴇʀᴇᴅ ʙʏ: @jb_links"
+        )
+
+    await m.reply(text, reply_markup=kb)
 
 @app.on_message(filters.command("usage"))
 async def usage(_, m):
+    cfg = load_config()
+    if not cfg["premium_mode"]:
+        await m.reply("🟢 Premium mode is OFF\n♾ Unlimited usage")
+        return
+
     data = load_data()
     user = data.get(str(m.from_user.id), {})
     if is_premium(user):
@@ -97,22 +135,48 @@ async def usage(_, m):
 
 @app.on_callback_query(filters.regex("get_premium"))
 async def premium_info(_, q):
+    cfg = load_config()
+    if not cfg["premium_mode"]:
+        await q.answer("Premium mode is OFF", show_alert=True)
+        return
+
     text = (
         "🌟 **Get Premium Access**\n\n"
         "Unlimited background removals 🚀\n\n"
         f"💳 **UPI ID:** `{UPI_ID}`\n\n"
         "📌 **Steps:**\n"
-        "1️⃣ Make payment using the UPI ID / QR code\n"
+        "1️⃣ Make payment using the UPI ID\n"
         "2️⃣ Take a screenshot of payment\n"
         f"3️⃣ Send the screenshot to 👉 @{OWNER_USERNAME}\n\n"
-        "⏳ Premium will be activated after verification\n\n"
-        "🌟 Premium Plans 🌟\n\n"
-        "🌟 ₹29 - 7 Days\n"
-        "🌟 ₹89 - 30 Days\n"
-        "🌟 ₹199 - 1 Year"
+        "🌟 Premium Plans 🌟\n"
+        "₹29 - 7 Days\n"
+        "₹89 - 30 Days\n"
+        "₹199 - 1 Year"
     )
-    await q.message.reply_photo(QR_IMAGE_URL, caption=text)
+
+    await q.message.reply(text)
     await q.answer()
+
+@app.on_message(filters.command("set_premium") & filters.user(OWNER_ID))
+async def set_premium_mode(_, m):
+    try:
+        mode = m.text.split()[1].lower()
+        cfg = load_config()
+
+        if mode == "on":
+            cfg["premium_mode"] = True
+            save_config(cfg)
+            await m.reply("✅ Premium mode **ON**")
+
+        elif mode == "off":
+            cfg["premium_mode"] = False
+            save_config(cfg)
+            await m.reply("🟢 Premium mode **OFF**\nUnlimited access enabled")
+
+        else:
+            await m.reply("❌ Usage: /set_premium on | off")
+    except:
+        await m.reply("❌ Usage: /set_premium on | off")
 
 @app.on_message(filters.command("premium") & filters.user(OWNER_ID))
 async def add_premium(_, m):
