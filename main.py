@@ -26,12 +26,10 @@ class PingHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b"Bot is alive!")
 
-def run_http_server():
-    port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(("0.0.0.0", port), PingHandler)
-    server.serve_forever()
-
-threading.Thread(target=run_http_server, daemon=True).start()
+    def do_HEAD(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain")
+        self.end_headers()
 # ========================================================
 
 # ================== CONFIG ==================
